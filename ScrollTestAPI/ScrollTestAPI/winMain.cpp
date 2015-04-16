@@ -99,15 +99,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
 	PAINTSTRUCT ps;
-	static int iMaxValue = 12515;
-	static scroll scr;
+	static int iMaxValue = 255;
+	static scroll scr_r, scr_g, scr_b;
 
-	scr.OnProcessingMouseMessage(hWnd, uMsg, wParam, lParam);
+	scr_r.OnProcessingMouseMessage(hWnd, uMsg, wParam, lParam);
+	scr_g.OnProcessingMouseMessage(hWnd, uMsg, wParam, lParam);
+	scr_b.OnProcessingMouseMessage(hWnd, uMsg, wParam, lParam);
 
 	switch (uMsg)
 	{
 	case WM_CREATE:
-		scr.initialize(scroll::SCRType::SCR_H, iMaxValue, 250, 250 - 24, { 12, 220 },145);
+		scr_r.initialize(scroll::SCRType::SCR_V, iMaxValue, 200, 200, { 220, 50 }, 145, 10, 7.5);
+		scr_g.initialize(scroll::SCRType::SCR_V, iMaxValue, 200, 200, { 245, 50 }, 145, 10, 7.5);
+		scr_b.initialize(scroll::SCRType::SCR_V, iMaxValue, 200, 200, { 270, 50 }, 145, 10, 7.5);
 
 		break;
 	case WM_LBUTTONDOWN:
@@ -142,15 +146,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		SelectObject(LayDC, Lay);
 		FillRect(LayDC, &rcClient, (HBRUSH)GetStockObject(WHITE_BRUSH));
 		//-----------------------------------------------------
-
-		scr.Draw(LayDC, rcClient);
+//		Rectangle(LayDC, 0, 150, 250, 220);
+		scr_r.Draw(LayDC, rcClient, RGB((int)scr_r.GetNowSrcPosition(), 0, 0));
+		scr_g.Draw(LayDC, rcClient, RGB(0, (int)scr_g.GetNowSrcPosition(), 0));
+		scr_b.Draw(LayDC, rcClient, RGB(0, 0, (int)scr_b.GetNowSrcPosition()));
 		TCHAR str[256], str_num[20];
-		numFix(str_num, (int)scr.GetNowSrcPosition());
-		wsprintf(str, L"now value : %s", str_num);
+		numFix(str_num, (int)scr_r.GetNowSrcPosition());
+		wsprintf(str, L"now value(R) : %s", str_num);
+		TextOut(LayDC, 50, 240, str, lstrlen(str));
+		numFix(str_num, (int)scr_g.GetNowSrcPosition());
+		wsprintf(str, L"now value(G) : %s", str_num);
+		TextOut(LayDC, 50, 220, str, lstrlen(str));
+		numFix(str_num, (int)scr_b.GetNowSrcPosition());
+		wsprintf(str, L"now value(B) : %s", str_num);
 		TextOut(LayDC, 50, 200, str, lstrlen(str));
 		numFix(str_num, iMaxValue);
 		wsprintf(str, L"max value : %s", str_num);
 		TextOut(LayDC, 50, 180, str, lstrlen(str));
+		SetDCBrushColor(LayDC, RGB((int)scr_r.GetNowSrcPosition(), (int)scr_g.GetNowSrcPosition(), (int)scr_b.GetNowSrcPosition()));
+		RECT rcColorPallet = { 50, 50, 150, 150 };
+		FillRect(LayDC, &rcColorPallet, (HBRUSH)GetStockObject(DC_BRUSH));
+
 		//-----------------------------------------------------
 		
 		BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, LayDC, 0, 0, SRCCOPY);

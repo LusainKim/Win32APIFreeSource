@@ -9,17 +9,14 @@
 
 #pragma region	 default setting part
 
-#define SCR_DEFAULTBLANK 5
-
 #pragma endregion
 
 /*
 * 스크롤을 사용하기 위한 기반클래스입니다.
 * 스크롤에 대한 기본적인 코드가 제공됩니다.
-* 좌, 우 스크롤 방식을 선택해서 사용할 수 있습니다.
+* 수직, 수평 스크롤 방식을 선택해서 사용할 수 있습니다.
 * 초기화(initialize)를 한 뒤 사용해야 합니다.
-* 이 클래스는 마우스 클릭, 그리기 함수를 제공합니다.
-* 사용법은 scroll.h의 해당 주석 위에 작성됩니다.
+* 이 클래스를 이용한 스크롤 클래스는 마우스 클릭, 그리기 함수를 제공해야 합니다.
 */
 class basic_scroll{
 
@@ -48,8 +45,6 @@ protected:
 	//	대상 데이터가 보여지는 화면의 길이입니다.
 	float	m_flSrcView;
 
-	//	스크롤을 그릴 때 간격을 줄 여백입니다.
-	float	m_flBlank;
 	//	스크롤의 너비입니다.
 	float	m_flThickness;
 
@@ -75,11 +70,11 @@ public:
 	*	ScrViewLength : 화면에 보이는 데이터 길이입니다.
 	*	ScrollLength : 스크롤바의 길이입니다.
 	*	ThumbLength( = 0.f) : 스크롤 바의 이동시킬 수 있는 막대 길이(1/2)입니다. 0을 입력하면 자동으로 계산합니다.
-	*	blank : 스크롤의 여백입니다.
+			※ ThumbLength의 길이를 자동으로 조절할 수 있는 조건 : ScrollLength > ThumbLength * 2
 	*	thickness : 스크롤의 굵기입니다.
 	*/
 	virtual void initialize(SCRType type, float ScrLength, float ScrViewLength, float ScrollLength,
-		float ThumbLength = 0.f, float blank = SCR_DEFAULTBLANK, float thickness = 5.0f)
+		float ThumbLength = 0.f, float thickness = 5.0f)
 	{
 		m_bGrap = false;
 		m_fLastGrapPosition = 0.f;
@@ -96,7 +91,6 @@ public:
 
 		m_flScroll = ScrollLength - 2 * m_flThumb;
 
-		m_flBlank = blank;
 		m_flThickness = thickness;
 	}
 
@@ -179,13 +173,13 @@ public:
 	*	worldPosition : 스크롤이 그려질 영역의 전역 시작 좌표입니다.
 	*	Opacity : 스크롤의 투명도입니다. 0부터 255까지의 정수입니다.
 	*	ThumbLength( = 0.f) : 스크롤 바의 이동시킬 수 있는 막대 길이(1/2)입니다. 0을 입력하면 자동으로 계산합니다.
-	*	blank : 스크롤의 여백입니다.
+			※ ThumbLength의 길이를 자동으로 조절할 수 있는 조건 : ScrollLength > ThumbLength * 2
 	*	thickness : 스크롤의 굵기입니다.
 	*/
 	virtual void initialize(SCRType type, float ScrLength, float ScrViewLength, float ScrollLength, POINT WorldPosition,
-		float Opacity = 255.0f, float ThumbLength = 0.f, float blank = SCR_DEFAULTBLANK, float thickness = 5.0f)
+		float Opacity = 255.0f, float ThumbLength = 0.f, float thickness = 5.0f)
 	{
-		basic_scroll::initialize(type, ScrLength, ScrViewLength, ScrollLength, ThumbLength, blank, thickness);
+		basic_scroll::initialize(type, ScrLength, ScrViewLength, ScrollLength, ThumbLength, thickness);
 		m_ptWorldPosition = WorldPosition;
 		m_iOpacity = Opacity;
 		RenewalThumbRect();
@@ -205,13 +199,16 @@ public:
 	}
 
 	/*
-	* 마우스가 눌려졌을 떄의 상황을 처리합니다.
+	* 마우스가 눌려졌을 때의 상황을 처리합니다.
 	*/
 	void TouchCheck(POINT pt, float ScrollmoveLength = 10.f)
 	{
 		float pos = ((m_scType == SCRType::SCR_H) ? pt.x - m_ptWorldPosition.x : pt.y - m_ptWorldPosition.y);
 		if (PtInRect(&m_rcThumb, pt))
+		{
 			SetGrip(pos);
+			m_bOnClick = true;
+		}
 		else if (PtInRect(&m_rcScroll, pt))
 		{
 			if (pos > m_flThumb + m_fnowScrollpos)
@@ -219,8 +216,8 @@ public:
 			else
 				SetnowScrollPosition(-ScrollmoveLength);
 			RenewalThumbRect();
+			m_bOnClick = true;
 		}
-		m_bOnClick = true;
 	}
 
 	/*
@@ -297,7 +294,7 @@ public:
 	* 모서리가 둥근 사각형이 기본형이며, 내부적으로 변경하여 사용하실 수 있습니다.
 	* 투명값을 이용하여 반투명한 스크롤을 구현할 수 있습니다.
 	*/
-	virtual void Draw(HDC hDC, RECT DrawAreaSize)
+	virtual void Draw(HDC hDC, RECT DrawAreaSize, COLORREF color = RGB(0,0,0))
 	{
 
 		BLENDFUNCTION bf;
@@ -314,11 +311,13 @@ public:
 		SetDCBrushColor(LayDC, RGB(255, 255, 255));
 		SelectObject(LayDC, (HBRUSH)GetStockObject(DC_BRUSH));
 
-		RoundRect(LayDC, m_rcScroll.left, m_rcScroll.top, m_rcScroll.right, m_rcScroll.bottom, m_flBlank * 0.5f, m_flBlank * 0.5f);
+		RoundRect(LayDC, m_rcScroll.left, m_rcScroll.top, m_rcScroll.right, m_rcScroll.bottom, m_flThickness * 0.5f, m_flThickness * 0.5f);
 
-		SetDCBrushColor(LayDC, RGB(0, 0, 0));
+		SetDCPenColor(LayDC, color);
+		SetDCBrushColor(LayDC, color);
 		SelectObject(LayDC, (HBRUSH)GetStockObject(DC_BRUSH));
-		RoundRect(LayDC, m_rcThumb.left, m_rcThumb.top, m_rcThumb.right, m_rcThumb.bottom, m_flBlank * 0.5f, m_flBlank * 0.5f);
+		SelectObject(LayDC, (HPEN)GetStockObject(DC_PEN));
+		RoundRect(LayDC, m_rcThumb.left, m_rcThumb.top, m_rcThumb.right, m_rcThumb.bottom, m_flThickness * 0.5f, m_flThickness * 0.5f);
 
 		AlphaBlend(hDC, DrawAreaSize.left, DrawAreaSize.top, DrawAreaSize.right - DrawAreaSize.left, DrawAreaSize.bottom - DrawAreaSize.top,
 			LayDC, DrawAreaSize.left, DrawAreaSize.top, DrawAreaSize.right - DrawAreaSize.left, DrawAreaSize.bottom - DrawAreaSize.top, bf);
